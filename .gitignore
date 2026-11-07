@@ -10,3 +10,6 @@ notes/
 
 # Privacy backups (which photos are private)
 backups/
+
+# Which commit is running on the Pi (written by the deploy scripts)
+.deployed-commit

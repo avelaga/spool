@@ -7,3 +7,4 @@ notes
 .env*.local
 .git
 *.log
+.deployed-commit

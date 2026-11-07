@@ -202,6 +202,7 @@ fi
 # ---------------------------------------------------------------- 7. Build + start
 bold "7/7  Build and start (first build takes a few minutes)"
 "${DOCKER[@]}" compose up -d --build
+git rev-parse HEAD >.deployed-commit 2>/dev/null || true # lets update-pi.sh know what's running
 
 echo "  Waiting for the app…"
 CHECK_HOST=$([[ $LISTEN == 0.0.0.0 ]] && echo 127.0.0.1 || echo "$LISTEN")

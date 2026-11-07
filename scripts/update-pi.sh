@@ -12,15 +12,20 @@ if docker info >/dev/null 2>&1; then DOCKER=(docker); else DOCKER=(sudo docker);
 env_get() { [[ -f $2 ]] && sed -n "s/^$1=//p" "$2" | tail -1 | sed -e "s/^[\"']//" -e "s/[\"']$//" || true; }
 
 START=$SECONDS
-BEFORE=$(git rev-parse HEAD)
+# The commit that's actually running (written after each successful deploy). Comparing against
+# this — not just what `git pull` fetched — means a manual `git pull` still gets deployed.
+STAMP=.deployed-commit
+DEPLOYED=$(cat "$STAMP" 2>/dev/null || true)
 git pull --ff-only --quiet
-AFTER=$(git rev-parse HEAD)
+HEAD_NOW=$(git rev-parse HEAD)
 
-if [[ $BEFORE == "$AFTER" && ${1:-} != --force ]]; then
+if [[ $DEPLOYED == "$HEAD_NOW" && ${1:-} != --force ]]; then
   echo "Already up to date ($(git log -1 --format='%h %s'))."
   exit 0
 fi
-[[ $BEFORE != "$AFTER" ]] && git --no-pager log --oneline "$BEFORE..$AFTER"
+if [[ -n $DEPLOYED ]] && git cat-file -e "$DEPLOYED" 2>/dev/null; then
+  git --no-pager log --oneline "$DEPLOYED..$HEAD_NOW"
+fi
 
 # Builds while the old version keeps serving; the swap at the end takes a few seconds.
 "${DOCKER[@]}" compose up -d --build --remove-orphans
@@ -31,6 +36,7 @@ URL="http://$HOST:${PORT:-3000}/"
 for _ in $(seq 1 45); do curl -fs -o /dev/null "$URL" && break; sleep 2; done
 curl -fs -o /dev/null "$URL" || { echo "✗ Not answering at $URL — check: docker compose logs"; exit 1; }
 
+echo "$HEAD_NOW" >"$STAMP"
 # Old image layers pile up with every build; drop the dangling ones.
 "${DOCKER[@]}" image prune -f >/dev/null
 echo "✓ Updated and running ($((SECONDS - START))s)"
