@@ -1,3 +1,4 @@
+import './load-env.ts';
 /**
  * Dry run: parse the archive and write a human-readable review of every roll.
  * Reads the archive only; writes to SPOOL_DATA (./data) only.

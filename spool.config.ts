@@ -8,7 +8,7 @@
 import type { SpoolConfig } from './src/lib/archive/types.ts';
 
 const config: SpoolConfig = {
-  archiveRoot: process.env.SPOOL_ARCHIVE ?? '/Volumes/MAIN/000 FILM 2.0',
+  archiveRoot: process.env.SPOOL_ARCHIVE ?? '/path/to/your/scans',
   dataDir: process.env.SPOOL_DATA ?? './data',
 
   // Loose top-level folders — skipped for now (see TODO.md).

@@ -44,7 +44,7 @@ else
     testparm -s 2>/dev/null | awk '/^\[/{s=$0} /path =/{print "    " s "  " $3}' || true
   fi
   while :; do
-    ARCHIVE=$(ask "Full path to the film folder (e.g. /srv/nas/000 FILM 2.0):")
+    ARCHIVE=$(ask "Full path to the film folder (e.g. /srv/nas/Film Scans):")
     ARCHIVE=${ARCHIVE%/}
     [[ -d $ARCHIVE ]] && break
     warn "Not a folder: $ARCHIVE"

@@ -1,3 +1,4 @@
+import './load-env.ts';
 /**
  *   npm run privacy:backup              save the private list to backups/
  *   npm run privacy:restore [file]      merge a backup back in (default: backups/privacy-latest.json)

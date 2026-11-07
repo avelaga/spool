@@ -1,3 +1,4 @@
+import './load-env.ts';
 /** Manual index run: `npm run index` */
 import { runIndex } from '../src/lib/indexer/run.ts';
 
