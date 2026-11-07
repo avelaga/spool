@@ -1,4 +1,9 @@
-<p align="center"><img src="assets/logo-colour.png" width="140" alt=""></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-white.png">
+    <img src="assets/logo-colour.png" width="140" alt="Spool logo">
+  </picture>
+</p>
 
 # Spool
 
