@@ -1,0 +1,33 @@
+{
+  "name": "spool",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "index": "node --disable-warning=ExperimentalWarning scripts/index.ts",
+    "review": "node --disable-warning=ExperimentalWarning scripts/review.ts",
+    "test": "node --disable-warning=ExperimentalWarning --conditions=react-server --test test/*.test.ts",
+    "privacy:backup": "node --disable-warning=ExperimentalWarning --conditions=react-server scripts/privacy.ts backup",
+    "privacy:restore": "node --disable-warning=ExperimentalWarning --conditions=react-server scripts/privacy.ts restore",
+    "privacy:status": "node --disable-warning=ExperimentalWarning --conditions=react-server scripts/privacy.ts status"
+  },
+  "dependencies": {
+    "exifr": "^7.1.3",
+    "next": "^16.4.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+.next/
+data/
+.DS_Store
+.env*.local
+.env
+
+# Private planning notes (business, legal)
+notes/
+
+# Privacy backups (which photos are private)
+backups/
