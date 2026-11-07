@@ -51,7 +51,9 @@ else
   done
 fi
 [[ -d $ARCHIVE ]] || die "Archive folder not found: $ARCHIVE"
-JPGS=$(find "$ARCHIVE" -maxdepth 4 -type f \( -iname '*.jpg' -o -iname '*.jpeg' \) 2>/dev/null | head -2000 | wc -l)
+# `|| true`: head closes the pipe early on big archives, which makes find exit non-zero (SIGPIPE)
+JPGS=$( (find "$ARCHIVE" -maxdepth 4 -type f \( -iname '*.jpg' -o -iname '*.jpeg' \) 2>/dev/null || true) | head -2000 | wc -l)
+JPGS=${JPGS// /}
 ok "Found $( ((JPGS >= 2000)) && echo '2000+' || echo "$JPGS") JPEGs near the top of $ARCHIVE"
 if id -u "$APP_UID" >/dev/null 2>&1 && ! sudo -u "#$APP_UID" test -r "$ARCHIVE" -a -x "$ARCHIVE"; then
   die "User $APP_UID (the app inside Docker) can't read $ARCHIVE. Fix its permissions, then re-run."
