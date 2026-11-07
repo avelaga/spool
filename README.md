@@ -85,6 +85,36 @@ app/                    pages + API routes (thumbnails, viewer images, originals
 
 Git ignores `data/`, `backups/`, `notes/` and `.env.local`.
 
+## Deploy on a Raspberry Pi
+
+The app runs in Docker with the archive mounted **read-only**. It's reachable only through your VPN (WireGuard or Tailscale), never your whole home network.
+
+```sh
+# on the Pi (Raspberry Pi OS 64-bit)
+curl -fsSL https://get.docker.com | sh && sudo usermod -aG docker $USER   # then log out/in
+git clone <repo> ~/spool && cd ~/spool
+cat > .env <<'ENV'
+SPOOL_ARCHIVE_HOST="/path/to/film folder"   # where the archive lives on the Pi
+SPOOL_LISTEN=10.x.x.1                        # the Pi's WireGuard address (ip -4 addr show wg0)
+ENV
+# copy .env.local (password etc.), and optionally data/ + backups/, from the dev machine
+mkdir -p data backups
+docker compose up -d --build
+docker compose logs -f                      # watch the first index
+```
+
+Then open `http://<SPOOL_LISTEN>:3000` from any device on your VPN. If you use Tailscale instead, leave `SPOOL_LISTEN` unset and run `sudo tailscale serve --bg 3000`.
+
+Docker has to start after WireGuard, or it can't listen on the WireGuard address at boot:
+
+```sh
+sudo mkdir -p /etc/systemd/system/docker.service.d
+printf '[Unit]\nAfter=wg-quick@wg0.service\nWants=wg-quick@wg0.service\n' | sudo tee /etc/systemd/system/docker.service.d/after-wireguard.conf
+sudo systemctl daemon-reload
+```
+
+To update: `git pull && docker compose up -d --build`. To run a command inside the container: `docker compose exec spool npm run privacy:status`.
+
 ## Status
 
 This is a personal project, run on a Raspberry Pi 5 with the NAS attached and reached over Tailscale. Next steps are in [TODO.md](TODO.md); the main one is a Docker image for the Pi.

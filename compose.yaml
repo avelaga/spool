@@ -1,0 +1,25 @@
+services:
+  spool:
+    build: .
+    container_name: spool
+    restart: unless-stopped
+    ports:
+      # Listen only on SPOOL_LISTEN (set in .env on the Pi, e.g. its WireGuard address).
+      # Unset → only the Pi itself can reach it. Avoid "3000:3000": that opens it to your whole home network.
+      - "${SPOOL_LISTEN:-127.0.0.1}:3000:3000"
+    env_file: .env.local # SPOOL_UNLOCK_PATH, SPOOL_PASSWORD, SPOOL_PRIVACY_REQUIRED, …
+    environment:
+      # Fixed container paths (these override anything in .env.local).
+      SPOOL_ARCHIVE: /archive
+      SPOOL_DATA: /data
+      SPOOL_BACKUP_DIR: /backups
+    volumes:
+      # The film archive, READ-ONLY: the container cannot write to it, whatever the code does.
+      - type: bind
+        source: ${SPOOL_ARCHIVE_HOST:?Set SPOOL_ARCHIVE_HOST in .env to the film folder on the Pi}
+        target: /archive
+        read_only: true
+      # Thumbnails, viewer images, SQLite index — on the Pi's disk, not the archive.
+      - ./data:/data
+      # Private-list backups.
+      - ./backups:/backups

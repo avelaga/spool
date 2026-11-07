@@ -12,7 +12,8 @@
 - [ ] Should 35mm rolls that aren't point & shoot (SLR: F3, Canon, N90s) get a type, or stay untyped?
 
 ## App
-- [ ] Docker image (arm64) for the Pi: archive mounted `:ro`, `SPOOL_DATA` on the SSD, `output: 'standalone'`
+- [x] Docker image + compose for the Pi (archive mounted read-only) — not yet tested on the Pi
+- [ ] Copy `backups/` somewhere off the Pi periodically (NAS share that isn't the archive, or another machine)
 - [ ] Extra tags UI (table exists: `tags`, keyed by content hash)
 - [ ] Rescan report: private:yes rows that no longer match any photo (file renamed AND re-exported) so they can be re-marked
 - [ ] Private roll + roll folder renamed: frames added *after* the rename aren't covered (the roll rule is by path)
