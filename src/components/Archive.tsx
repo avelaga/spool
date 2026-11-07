@@ -16,6 +16,7 @@ import {
   type FilterState,
 } from '@/lib/view.ts';
 import { BackToTop } from './BackToTop.tsx';
+import { DensityControl } from './DensityControl.tsx';
 import { FilterBar } from './FilterBar.tsx';
 import { Grid } from './Grid.tsx';
 import { Viewer } from './Viewer.tsx';
@@ -193,6 +194,7 @@ export function Archive({ data: guestData, mode, rollId }: Props) {
             <span className="mono muted">
               {total.toLocaleString()} frames · {sections.length} rolls
             </span>
+            <DensityControl />
             <div className="segmented" role="group" aria-label="Layout">
               <button aria-pressed={state.grouped} onClick={() => setFilters({ ...state, grouped: true })}>
                 Rolls

@@ -194,9 +194,27 @@ button {
   padding-top: 7px;
 }
 .chips {
+  position: relative; /* for the hidden measuring copy */
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  min-width: 0;
+}
+.chips-ruler {
+  /* zero-size + clipped, so measuring never widens the page */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  display: flex;
+  gap: 6px;
+  visibility: hidden;
+  pointer-events: none;
+}
+.chips-ruler > * {
+  flex-shrink: 0;
 }
 .chip {
   display: inline-flex;
@@ -241,13 +259,7 @@ button {
   .facet-label {
     padding-top: 0;
   }
-  .chips {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin: 0 calc(-1 * var(--gutter));
-    padding: 0 var(--gutter);
-  }
+
 }
 
 .toolbar {
@@ -980,4 +992,34 @@ html.drag-selecting * {
 .owner-lockdown code {
   font-family: var(--mono);
   font-size: 12px;
+}
+
+/* Grid size control */
+.density button {
+  display: grid;
+  place-items: center;
+  padding: 4px 8px;
+}
+
+/* Timeline on touch screens: a thumb-sized handle, clear of the browser's own scroll bar. */
+@media (hover: none) {
+  .scrubber {
+    right: 10px;
+    width: 56px;
+  }
+  .scrubber-thumb {
+    right: 6px;
+    width: 34px;
+    height: 48px;
+    border-radius: 12px;
+    background:
+      linear-gradient(var(--chip-on-fg), var(--chip-on-fg)) center calc(50% - 5px) / 14px 2px no-repeat,
+      linear-gradient(var(--chip-on-fg), var(--chip-on-fg)) center 50% / 14px 2px no-repeat,
+      linear-gradient(var(--chip-on-fg), var(--chip-on-fg)) center calc(50% + 5px) / 14px 2px no-repeat,
+      var(--chip-on-bg);
+    opacity: 0.92;
+  }
+  .scrubber-label {
+    right: 52px;
+  }
 }

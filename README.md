@@ -112,7 +112,7 @@ cd ~/spool && ./scripts/setup-pi.sh
 
 Re-running it is safe.
 
-To update: `git pull && docker compose up -d --build`. To run a command inside the container: `docker compose exec spool npm run privacy:status`.
+To update: `./scripts/update-pi.sh` pulls and rebuilds only if something changed, with no questions. Re-run `setup-pi.sh` only to change settings. To run a command inside the container: `docker compose exec spool npm run privacy:status`.
 
 ## Status
 

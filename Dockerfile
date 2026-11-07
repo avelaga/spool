@@ -2,27 +2,28 @@
 # Built on the Pi itself (arm64). Node 24 = built-in TypeScript + node:sqlite.
 FROM node:24-bookworm-slim
 
-WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     NODE_OPTIONS=--disable-warning=ExperimentalWarning \
-    PORT=3000
-
-COPY package.json package-lock.json ./
-# Full install: the build needs TypeScript; sharp ships a prebuilt linux-arm64 binary.
-RUN npm ci --include=dev
-
-COPY . .
-RUN npm run build
-
-# Runtime paths — mounted from the host by compose.yaml
-ENV SPOOL_ARCHIVE=/archive \
+    PORT=3000 \
+    SPOOL_ARCHIVE=/archive \
     SPOOL_DATA=/data \
     SPOOL_BACKUP_DIR=/backups
 
-# Run as the image's non-root "node" user (uid 1000 — usually the Pi's first user too).
-RUN mkdir -p /data /backups && chown -R node:node /app /data /backups
+# Only empty folders get chowned here. Everything below is copied in already owned by
+# the non-root "node" user (uid 1000), so there's no slow `chown -R` over node_modules.
+RUN mkdir -p /app /data /backups && chown node:node /app /data /backups
+WORKDIR /app
 USER node
+
+# Dependencies: cached until package-lock.json changes. The build needs dev deps (TypeScript);
+# sharp ships a prebuilt linux-arm64 binary.
+COPY --chown=node:node package.json package-lock.json ./
+RUN npm ci --include=dev --no-audit --no-fund
+
+# App code: only this layer and the build re-run on a normal code update.
+COPY --chown=node:node . .
+RUN npm run build
 
 EXPOSE 3000
 CMD ["npm", "start"]

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { DENSITY_SCALE, DENSITY_SCALE_SMALL, useDensity } from '@/lib/density.ts';
 import type { PhotoTuple, RollDTO } from '@/lib/queries.ts';
 import { justify, P, prettyDate, rowHeightFor, rollMeta, thumbUrl, type Block } from '@/lib/view.ts';
 import { Scrubber, type Marker } from './Scrubber.tsx';
@@ -27,6 +28,7 @@ export function Grid({ sections, onOpen, focusIndex, selection, onSelect, onSele
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [range, setRange] = useState<[number, number]>([0, 0]);
+  const density = useDensity();
 
   // Measure synchronously on mount (first paint is right), then follow resizes.
   useLayoutEffect(() => {
@@ -41,13 +43,30 @@ export function Grid({ sections, onOpen, focusIndex, selection, onSelect, onSele
   const layout = useMemo(() => {
     if (!width) return { blocks: [] as Block[], height: 0 };
     const small = width < 600;
+    const gap = density === 0 ? (small ? 2 : 3) : small ? 3 : 6;
     return justify(sections, width, {
-      gap: small ? 3 : 6,
-      target: rowHeightFor(width),
+      gap,
+      target: Math.round(rowHeightFor(width) * (small ? DENSITY_SCALE_SMALL : DENSITY_SCALE)[density]),
       header: small ? 64 : 76,
       sectionGap: small ? 28 : 44,
     });
-  }, [sections, width]);
+  }, [sections, width, density]);
+
+  // When the grid size changes, keep the photo that was at the top of the screen in view.
+  const prev = useRef<{ density: number; blocks: Block[] }>({ density, blocks: [] });
+  useLayoutEffect(() => {
+    const before = prev.current;
+    prev.current = { density, blocks: layout.blocks };
+    if (before.density === density || !before.blocks.length || !ref.current) return;
+    const top = ref.current.getBoundingClientRect().top + window.scrollY;
+    const y = window.scrollY - top;
+    if (y <= 0) return;
+    const row = before.blocks.find((b) => b.kind === 'row' && b.y + b.h > y);
+    const anchor = row?.kind === 'row' ? row.items[0].index : null;
+    if (anchor === null) return;
+    const now = layout.blocks.find((b) => b.kind === 'row' && b.items.some((i) => i.index === anchor));
+    if (now) window.scrollTo({ top: top + now.y - 12 });
+  }, [layout, density]);
 
   // Track which slice of the page is visible (layout effect: no blank frame after a layout change).
   useLayoutEffect(() => {
