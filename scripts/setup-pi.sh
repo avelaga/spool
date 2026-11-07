@@ -22,7 +22,7 @@ env_get() { [[ -f $2 ]] && sed -n "s/^$1=//p" "$2" | tail -1 | sed -e "s/^[\"']/
 APP_UID=1000 # the container's "node" user
 
 # ---------------------------------------------------------------- 1. Docker
-bold "1/6  Docker"
+bold "1/7  Docker"
 if ! command -v docker >/dev/null; then
   yes_no "Docker isn't installed. Install it now (official get.docker.com script)?" || die "Docker is required."
   curl -fsSL https://get.docker.com | sh
@@ -34,7 +34,7 @@ if docker info >/dev/null 2>&1; then DOCKER=(docker); else DOCKER=(sudo docker);
 ok "$("${DOCKER[@]}" --version)"
 
 # ---------------------------------------------------------------- 2. Archive
-bold "2/6  Film archive (mounted read-only)"
+bold "2/7  Film archive (mounted read-only)"
 ARCHIVE=$(env_get SPOOL_ARCHIVE_HOST .env)
 if [[ -n $ARCHIVE ]] && ! yes_no "Archive is set to \"$ARCHIVE\". Change it?"; then
   :
@@ -61,7 +61,7 @@ fi
 ok "Readable by the app user ($APP_UID)"
 
 # ---------------------------------------------------------------- 3. Network
-bold "3/6  Who can reach it"
+bold "3/7  Who can reach it"
 LISTEN=$(env_get SPOOL_LISTEN .env)
 WG_IP=$(ip -4 -o addr show wg0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 || true)
 if [[ -z $LISTEN ]] || yes_no "Listening on ${LISTEN}. Change it?"; then
@@ -75,18 +75,29 @@ if [[ -z $LISTEN ]] || yes_no "Listening on ${LISTEN}. Change it?"; then
     LISTEN=${LISTEN:-127.0.0.1}
   fi
 fi
-ok "Will listen on $LISTEN:3000"
+PORT=$(env_get SPOOL_PORT .env)
+PORT=${PORT:-3000}
+if [[ $PORT != 80 ]]; then
+  if ss -ltnH 'sport = :80' 2>/dev/null | grep -q .; then
+    warn "Port 80 is already used by another program, so Spool stays on :$PORT"
+  elif yes_no "Use port 80, so addresses don't need \":$PORT\" (e.g. http://pi5.local)?"; then
+    PORT=80
+  fi
+fi
+url() { [[ $PORT == 80 ]] && echo "http://$1" || echo "http://$1:$PORT"; }
+ok "Will listen on $LISTEN, port $PORT"
 
 # .env is read by docker compose (paths + listen address only; no secrets)
 {
   echo "# Written by scripts/setup-pi.sh"
   echo "SPOOL_ARCHIVE_HOST=\"$ARCHIVE\""
   echo "SPOOL_LISTEN=$LISTEN"
+  echo "SPOOL_PORT=$PORT"
 } >.env
 ok "Wrote .env"
 
 # ---------------------------------------------------------------- 4. Private view
-bold "4/6  Private view + data"
+bold "4/7  Private view + data"
 mkdir -p data backups
 if [[ $(stat -c %u data) != "$APP_UID" || $(stat -c %u backups) != "$APP_UID" ]]; then
   sudo chown -R "$APP_UID:$APP_UID" data backups
@@ -119,7 +130,7 @@ if [[ -f backups/privacy-latest.json ]] && ! grep -q '^SPOOL_PRIVACY_REQUIRED=1'
 fi
 
 # ---------------------------------------------------------------- 5. Boot order
-bold "5/6  Start on boot"
+bold "5/7  Start on boot"
 if [[ $LISTEN == "$WG_IP" && -n $WG_IP ]]; then
   if systemctl list-unit-files 'wg-quick@*' >/dev/null 2>&1 && systemctl is-enabled wg-quick@wg0 >/dev/null 2>&1; then
     DROPIN=/etc/systemd/system/docker.service.d/after-wireguard.conf
@@ -136,17 +147,70 @@ else
   ok "Nothing extra needed"
 fi
 
-# ---------------------------------------------------------------- 6. Build + start
-bold "6/6  Build and start (first build takes a few minutes)"
+# ---------------------------------------------------------------- 6. Friendly name
+bold "6/7  A nicer name on your home network"
+MDNS_NAME=""
+if [[ $LISTEN == 127.0.0.1 || ( -n $WG_IP && $LISTEN == "$WG_IP" ) ]]; then
+  ok "Skipped (Spool isn't listening on your home network)"
+elif systemctl is-enabled spool-mdns >/dev/null 2>&1; then
+  MDNS_NAME=$(sed -n 's|^ExecStart=/usr/local/bin/spool-mdns ||p' /etc/systemd/system/spool-mdns.service)
+  ok "Already announced as $MDNS_NAME"
+elif yes_no "Also announce it as spool.local, so http://spool.local works at home? (doesn't rename the Pi)"; then
+  echo "  Plain names (spool) work on the most devices; dotted ones (spool.pi5) are less reliable on Windows/Android."
+  while :; do
+    NAME=$(ask "Name, without .local [spool]:")
+    NAME=${NAME:-spool}
+    NAME=${NAME%.local}
+    [[ $NAME =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$ ]] && break
+    warn "Use lowercase letters, numbers and hyphens (dots between parts are OK)."
+  done
+  MDNS_NAME="$NAME.local"
+  systemctl is-active avahi-daemon >/dev/null 2>&1 || die "avahi-daemon isn't running (it's what makes pi5.local work)."
+  command -v avahi-publish >/dev/null || sudo apt-get install -y avahi-utils >/dev/null
+  sudo tee /usr/local/bin/spool-mdns >/dev/null <<'SH'
+#!/bin/sh
+# Announce an extra mDNS name (e.g. spool.local) for this machine's home-network address.
+# Installed by spool's scripts/setup-pi.sh. Doesn't change the machine's own hostname.
+IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") { print $(i + 1); exit }}')
+[ -n "$IP" ] || { echo "spool-mdns: no network address yet" >&2; exit 1; }
+exec /usr/bin/avahi-publish -a -R "$1" "$IP"
+SH
+  sudo chmod 755 /usr/local/bin/spool-mdns
+  sudo tee /etc/systemd/system/spool-mdns.service >/dev/null <<UNIT
+[Unit]
+Description=Announce $MDNS_NAME on the local network (Spool)
+After=avahi-daemon.service network-online.target
+Wants=network-online.target
+Requires=avahi-daemon.service
+
+[Service]
+ExecStart=/usr/local/bin/spool-mdns $MDNS_NAME
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now spool-mdns >/dev/null 2>&1
+  sleep 1
+  systemctl is-active spool-mdns >/dev/null && ok "Announcing $MDNS_NAME" || warn "spool-mdns didn't start — check: journalctl -u spool-mdns"
+else
+  ok "Skipped"
+fi
+
+# ---------------------------------------------------------------- 7. Build + start
+bold "7/7  Build and start (first build takes a few minutes)"
 "${DOCKER[@]}" compose up -d --build
 
 echo "  Waiting for the app…"
+CHECK_HOST=$([[ $LISTEN == 0.0.0.0 ]] && echo 127.0.0.1 || echo "$LISTEN")
 for _ in $(seq 1 60); do
-  curl -fs -o /dev/null "http://$LISTEN:3000/" && break
+  curl -fs -o /dev/null "$(url "$CHECK_HOST")/" && break
   sleep 2
 done
-curl -fs -o /dev/null "http://$LISTEN:3000/" || die "Not answering on http://$LISTEN:3000 — check: docker compose logs"
-ok "Running at http://$LISTEN:3000"
+curl -fs -o /dev/null "$(url "$CHECK_HOST")/" || die "Not answering on $(url "$CHECK_HOST") — check: docker compose logs"
+ok "Running"
 
 # Read-only check without writing anything: ask Docker how /archive is mounted.
 RW=$("${DOCKER[@]}" inspect spool --format '{{range .Mounts}}{{if eq .Destination "/archive"}}{{.RW}}{{end}}{{end}}')
@@ -161,9 +225,17 @@ else
 fi
 
 UNLOCK=$(env_get SPOOL_UNLOCK_PATH .env.local)
-bold "Done"
-echo "  Open:          http://$LISTEN:3000"
-[[ -n $UNLOCK ]] && echo "  Private view:  http://$LISTEN:3000/$UNLOCK"
+LAN_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i < NF; i++) if ($i == "src") { print $(i + 1); exit }}' || true)
+bold "Done — open it at:"
+if [[ $LISTEN == 0.0.0.0 ]]; then
+  [[ -n $MDNS_NAME ]] && echo "  At home:       $(url "$MDNS_NAME")"
+  echo "  At home:       $(url "$(hostname).local")   or   $(url "$LAN_IP")"
+  [[ -n $WG_IP ]] && echo "  Via WireGuard: $(url "$WG_IP")"
+else
+  [[ -n $MDNS_NAME ]] && echo "  At home:       $(url "$MDNS_NAME")"
+  echo "  Address:       $(url "$LISTEN")"
+fi
+[[ -n $UNLOCK ]] && echo "  Private view:  add /$UNLOCK to any of these"
 echo "  Logs:          docker compose logs -f"
 echo "  Update later:  git pull && docker compose up -d --build"
 echo "  (No thumbnails copied? The first index runs in the background — photos appear as it goes.)"

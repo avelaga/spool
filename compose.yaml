@@ -4,9 +4,10 @@ services:
     container_name: spool
     restart: unless-stopped
     ports:
-      # Listen only on SPOOL_LISTEN (set in .env on the Pi, e.g. its WireGuard address).
-      # Unset → only the Pi itself can reach it. Avoid "3000:3000": that opens it to your whole home network.
-      - "${SPOOL_LISTEN:-127.0.0.1}:3000:3000"
+      # SPOOL_LISTEN: which address to listen on (set in .env on the Pi; 0.0.0.0 = every network the Pi is on).
+      # Unset → only the Pi itself can reach it.
+      # SPOOL_PORT: 80 lets you drop the ":port" from the address (http://spool.local).
+      - "${SPOOL_LISTEN:-127.0.0.1}:${SPOOL_PORT:-3000}:3000"
     env_file: .env.local # SPOOL_UNLOCK_PATH, SPOOL_PASSWORD, SPOOL_PRIVACY_REQUIRED, …
     environment:
       # Fixed container paths (these override anything in .env.local).

@@ -105,6 +105,7 @@ cd ~/spool && ./scripts/setup-pi.sh
 - asks for the film folder (listing the Samba shares) and checks the app can read it;
 - offers the WireGuard address to listen on;
 - writes `.env` / `.env.local`;
+- optionally uses port 80 and announces a name like `spool.local`, so at home it's just `http://spool.local`;
 - makes Docker start after WireGuard;
 - builds and starts Spool;
 - checks that it responds, that the archive is mounted read-only, and that the private list is complete.
