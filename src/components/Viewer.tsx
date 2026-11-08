@@ -45,8 +45,10 @@ export function Viewer({ photos, rolls, index, onIndex, onClose }: Props) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === 'ArrowLeft' || e.key === 'k') prev();
       else if (e.key === 'ArrowRight' || e.key === 'j') next();
-      else if (e.key === 'Escape') onClose();
-      else if (e.key === 'i' || e.key === ' ') {
+      else if (e.key === 'Escape' || e.key === ' ') {
+        e.preventDefault();
+        onClose();
+      } else if (e.key === 'i') {
         e.preventDefault();
         setChrome((c) => !c);
       } else if (e.key === 'o') window.open(originalUrl(photo), '_blank');

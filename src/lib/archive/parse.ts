@@ -4,13 +4,26 @@ import type { RollDate, Size, SpoolConfig, VariantRole } from './types.ts';
 /** "22.9.6 august f3", "18.2.21 | 1st Bronica", "19.12.6. | panf", "8.18.17 Scans" */
 const DATE_PREFIX = /^(\d{1,2})\.(\d{1,2})\.(\d{1,2})\.?(?:\s*\|)?\s*(.*)$/;
 
+/**
+ * SMB/NTFS can't store `| : * ? " < > \` in names, so Macs and Linux CIFS mounts swap them for
+ * private-use characters (SFU: U+F000 + ASCII code; SFM: U+F020–F029). Map them back, or a
+ * "21.7.1 | grad" folder copied to such a drive reads as "21.7.1  grad" and shows a stray glyph.
+ */
+const SMB_CHARS: Record<string, string> = {
+  '': '*', '': '?', '': ':', '': '>', '': '<', '': '|', '': '\\', '': '"',
+  '': '"', '': '*', '': '<', '': '>', '': '?', '': '\\', '': '|', '': ' ', '': '.',
+};
+export function unmangle(name: string): string {
+  return name.replace(/[-]/g, (c) => SMB_CHARS[c] ?? c);
+}
+
 export function hasDatePrefix(name: string): boolean {
-  return DATE_PREFIX.test(name.trim());
+  return DATE_PREFIX.test(unmangle(name).trim());
 }
 
 /** macOS shows ':' in on-disk names as '/' in Finder — display it the way you typed it. */
 export function displayName(name: string): string {
-  return name.replace(/:/g, '/').replace(/\s+/g, ' ').trim();
+  return unmangle(name).replace(/:/g, '/').replace(/\s+/g, ' ').trim();
 }
 
 export function yearsIn(name: string): number[] {
@@ -30,7 +43,7 @@ export function parseRollName(
   name: string,
   collectionYears: number[] = [],
 ): { date: RollDate | null; title: string } {
-  const m = DATE_PREFIX.exec(name.trim());
+  const m = DATE_PREFIX.exec(unmangle(name).trim());
   if (!m) return { date: null, title: displayName(name) };
 
   const [a, b, c] = [m[1], m[2], m[3]].map(Number);

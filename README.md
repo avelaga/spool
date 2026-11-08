@@ -30,7 +30,7 @@ I built it to replace Flickr for my own ~6,000 film scans. It runs on a Raspberr
 | Key | Action |
 |---|---|
 | `←` `→` | Previous / next photo |
-| `Esc` | Close the viewer |
+| `Esc` `Space` | Close the viewer |
 | `o` | Open the original |
 | `[` `]` | Previous / next roll |
 | `-` `=` | Smaller / larger grid |

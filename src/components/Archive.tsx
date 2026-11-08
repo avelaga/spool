@@ -92,7 +92,12 @@ export function Archive({ data: guestData, mode, rollId }: Props) {
   );
 
   // ----- URL-driven viewer: ?photo=<id>
-  const photoId = Number(params.get('photo')) || null;
+  // Arrowing shows the next photo at once (`live`) and writes the URL once you pause: Safari throws
+  // past ~100 history writes per 10s, which holding an arrow key easily hits.
+  const urlPhotoId = Number(params.get('photo')) || null;
+  const [live, setLive] = useState<number | null>(null);
+  const urlTimer = useRef(0);
+  const photoId = urlPhotoId && (live ?? urlPhotoId);
   const viewerIndex = photoId ? flat.findIndex((p) => p[P.id] === photoId) : -1;
   const pushed = useRef(false);
   const [focus, setFocus] = useState<number | null>(null);
@@ -102,6 +107,19 @@ export function Archive({ data: guestData, mode, rollId }: Props) {
     else pushed.current = false;
   }, [viewerIndex]);
 
+  // Back/forward wins over a pending URL write.
+  useEffect(() => {
+    const onPop = () => {
+      clearTimeout(urlTimer.current);
+      setLive(null);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      clearTimeout(urlTimer.current);
+    };
+  }, []);
+
   const urlWith = (photo: number | null, base = params.toString()) => {
     const sp = new URLSearchParams(base);
     photo ? sp.set('photo', String(photo)) : sp.delete('photo');
@@ -110,11 +128,25 @@ export function Archive({ data: guestData, mode, rollId }: Props) {
   };
 
   const open = (i: number) => {
-    window.history.pushState(null, '', urlWith(flat[i][P.id]));
+    // Coming back to the grid would restore the scroll from when the viewer opened; the grid
+    // scrolls to the last photo viewed instead. The mode is stored per history entry, so set it
+    // on the grid's entry before pushing, and switch it back once we've returned.
+    const h = window.history;
+    h.scrollRestoration = 'manual';
+    window.addEventListener('popstate', () => setTimeout(() => (h.scrollRestoration = 'auto')), { once: true });
+    clearTimeout(urlTimer.current);
+    setLive(null);
+    h.pushState(null, '', urlWith(flat[i][P.id]));
     pushed.current = true;
   };
-  const go = (i: number) => window.history.replaceState(null, '', urlWith(flat[i][P.id]));
+  const go = (i: number) => {
+    const id = flat[i][P.id];
+    setLive(id);
+    clearTimeout(urlTimer.current);
+    urlTimer.current = window.setTimeout(() => window.history.replaceState(null, '', urlWith(id)), 300);
+  };
   const close = () => {
+    clearTimeout(urlTimer.current); // `live` clears on popstate, so the last photo stays focused
     if (pushed.current) window.history.back();
     else window.history.replaceState(null, '', urlWith(null));
   };
